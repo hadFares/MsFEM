@@ -6,11 +6,11 @@ Fournit :
   - les coefficients A, f
   - la constante homogénéisée A_hom = 1/2
   - la solution homogénéisée u_hom(x) = x(1-x)  (forme close)
-  - la solution exacte par quadrature (ExactSolution wrappée en DiscreteSolution)
+  - la solution exacte sous forme close analytique (ExactSolution, interface
+    DiscreteSolution)
 """
 
 import numpy as np
-from scipy import integrate
 from .solution import DiscreteSolution
 
 
@@ -41,75 +41,44 @@ def du_hom(x):
 
 
 # ---------------------------------------------------------------------------
-# Solution exacte par quadrature
+# Solution exacte sous forme close
 # ---------------------------------------------------------------------------
-# En 1D : A(x) u'(x) = C - x  (primitives de -f = -1)
-# => u'(x) = (C - x) * (2 + cos(2 pi x / eps))
-# => u(x)  = integral_0^x u'(t) dt
-# C est fixé par u(1) = 0.
-
-def _build_exact(eps=EPS_DEFAULT, n_quad=4000):
-    """
-    Retourne (u_func, du_func) : fonctions évaluables sur array 1D.
-    n_quad : nombre de points Gauss-Legendre sur [0,1] pour les intégrales.
-    """
-    # Quadrature fine sur [0,1]
-    t_nodes, t_weights = np.polynomial.legendre.leggauss(n_quad)
-    # changement de variable [0,1] -> [-1,1] : t in [0,1] => s = 2t-1
-    t01 = 0.5 * (t_nodes + 1.0)      # points dans [0,1]
-    w01 = 0.5 * t_weights             # poids
-
-    def _integrand_C(t, C):
-        return (C - t) * (2.0 + np.cos(2.0 * np.pi * t / eps))
-
-    # Cherche C tel que u(1) = integral_0^1 u'(t) dt = 0
-    # u(1) = integral_0^1 (C-t)(2+cos...) dt = C*I1 - I2
-    # I1 = integral_0^1 (2+cos(2pi t/eps)) dt = 2  (cos s'annule)
-    # I2 = integral_0^1 t (2+cos(2pi t/eps)) dt
-    I1 = np.dot(w01, 2.0 + np.cos(2.0 * np.pi * t01 / eps))
-    I2 = np.dot(w01, t01 * (2.0 + np.cos(2.0 * np.pi * t01 / eps)))
-    C = I2 / I1
-
-    # u'(x) = (C - x) A_inv(x)  avec A_inv = 2 + cos(...)
-    def du_func(x):
-        x = np.asarray(x, dtype=float)
-        return (C - x) * (2.0 + np.cos(2.0 * np.pi * x / eps))
-
-    # u(x) = integral_0^x u'(t) dt  par quadrature sur chaque sous-intervalle
-    def u_func(x):
-        x = np.asarray(x, dtype=float)
-        scalar = x.ndim == 0
-        x = np.atleast_1d(x)
-        result = np.empty_like(x)
-        for i, xi in enumerate(x):
-            if xi == 0.0:
-                result[i] = 0.0
-            else:
-                # quadrature sur [0, xi]
-                ti = 0.5 * xi * (t_nodes + 1.0)
-                wi = 0.5 * xi * t_weights
-                result[i] = np.dot(wi, (C - ti) * (2.0 + np.cos(2.0 * np.pi * ti / eps)))
-        return result[0] if scalar else result
-
-    return u_func, du_func, C
-
+# IMPORTANT : la forme close ci-dessous suppose f ≡ 1 (second membre constant).
+#
+# En 1D, -(A u')' = 1 s'intègre une fois en  A(x) u'(x) = C - x, d'où
+#     u'(x) = (C - x)(2 + cos kx),     k = 2 pi / eps.
+# Une seconde intégration donne (valable pour tout eps, pas seulement le cas
+# résonant) :
+#     u(x)  = 2 C x - x^2 + (C - x) sin(kx)/k + (1 - cos kx)/k^2.
+# La constante de flux C est fixée par u(1) = 0 :
+#     C = (1 + sin(k)/k + (cos k - 1)/k^2) / (2 + sin(k)/k).
 
 class ExactSolution:
     """Solution exacte du problème modèle, conforme à l'interface DiscreteSolution."""
 
-    def __init__(self, eps=EPS_DEFAULT, n_quad=4000):
+    def __init__(self, eps=EPS_DEFAULT):
         self.eps = eps
-        self._u, self._du, self.C = _build_exact(eps, n_quad)
+        k = 2.0 * np.pi / eps
+        self.k = k
+        # Forme close de la constante de flux C (valable pour tout eps ; en
+        # régime résonant la formule redonne 0.5 à la précision machine).
+        self.C = (1.0 + np.sin(k) / k + (np.cos(k) - 1.0) / k**2) \
+            / (2.0 + np.sin(k) / k)
 
     def value(self, x):
-        return self._u(x)
+        x = np.asarray(x, dtype=float)
+        k, C = self.k, self.C
+        return (2.0 * C * x - x**2
+                + (C - x) * np.sin(k * x) / k
+                + (1.0 - np.cos(k * x)) / k**2)
 
     def grad(self, x):
-        return self._du(x)
+        x = np.asarray(x, dtype=float)
+        return (self.C - x) * (2.0 + np.cos(self.k * x))
 
 
-def exact_solution(eps=EPS_DEFAULT, n_quad=4000) -> ExactSolution:
-    return ExactSolution(eps=eps, n_quad=n_quad)
+def exact_solution(eps=EPS_DEFAULT) -> ExactSolution:
+    return ExactSolution(eps=eps)
 
 
 class HomogSolution:
