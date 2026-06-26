@@ -22,6 +22,25 @@ def plot_solutions(solutions_dict: dict, n_pts=500, title="Solutions", ax=None):
     return ax
 
 
+def plot_pointwise_error(sol_dict: dict, ref, n_pts=500, title="Erreur pointwise", ax=None):
+    """
+    Trace |sol(x) - ref(x)| pour chaque solution.
+
+    sol_dict : {"label": solution_obj, ...}, chaque objet ayant .value(x).
+    ref      : solution de référence (objet avec .value(x)).
+    """
+    if ax is None:
+        fig, ax = plt.subplots()
+    x = np.linspace(0.0, 1.0, n_pts)
+    ref_vals = ref.value(x)
+    for label, sol in sol_dict.items():
+        ax.plot(x, np.abs(sol.value(x) - ref_vals), label=label)
+    ax.set_xlabel("x")
+    ax.set_title(title)
+    ax.legend()
+    return ax
+
+
 def plot_convergence(H_list, errors_dict: dict, title="Convergence", ax=None, refs=None):
     """
     H_list       : liste de pas grossiers

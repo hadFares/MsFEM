@@ -23,10 +23,10 @@ class Mesh1D:
         self.H = 1.0 / N
         self.h = self.H / n
 
-        # Nœuds grossiers (N+1 points, indices 0..N)
+        # Noeuds grossiers (N+1 points, indices 0..N)
         self.nodes_coarse = np.linspace(0.0, 1.0, N + 1)
 
-        # Nœuds fins (N*n + 1 points)
+        # Noeuds fins (N*n + 1 points)
         self.nodes_fine = np.linspace(0.0, 1.0, N * n + 1)
 
     # ------------------------------------------------------------------
@@ -38,7 +38,7 @@ class Mesh1D:
         return self.nodes_coarse[i], self.nodes_coarse[i + 1]
 
     def fine_nodes_in_element(self, i: int):
-        """Nœuds fins dans la i-ème maille grossière (inclus les deux bords)."""
+        """Noeuds fins dans la i-ème maille grossière (inclus les deux bords)."""
         start = i * self.n
         return self.nodes_fine[start : start + self.n + 1]
 
@@ -48,8 +48,8 @@ class Mesh1D:
         Fonctionne sur scalaire ou array.
         """
         x = np.asarray(x, dtype=float)
-        idx = np.floor(x / self.H).astype(int)
-        np.clip(idx, 0, self.N - 1, out=idx)
+        idx = np.floor(x / self.H).astype(int)   # maille = partie entière de x/H
+        np.clip(idx, 0, self.N - 1, out=idx)     # borne le cas x == 1
         return idx
 
     # ------------------------------------------------------------------
