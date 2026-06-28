@@ -1,14 +1,14 @@
 """
-main.py — études paramétriques, comparaisons et vérifications.
+main.py — parametric studies, comparisons and checks.
 
-Lance : python main.py
+Run: python main.py
 """
 
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Console Windows (cp1252) : autorise les caractères type ε dans les prints.
+# Windows console (cp1252): allow characters like ε in the prints.
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
@@ -19,21 +19,21 @@ from msfem_1d.problem import A, f
 
 EPS = 1 / 8
 
-# Grille de référence fine commune pour la quadrature des normes d'erreur.
+# Common fine reference grid for the error-norm quadrature.
 REF_NODES = np.linspace(0.0, 1.0, 4096 + 1)
 
 
 # ===========================================================================
-# 1. Comparaison visuelle : P1 fin vs P1 grossier vs MsFEM vs exacte
+# 1. Visual comparison: fine P1 vs coarse P1 vs MsFEM vs exact
 # ===========================================================================
 
 def demo_solutions_msfem():
     u_ex = exact_solution(eps=EPS)
     u_hom = HomogSolution()
 
-    u_p1_fine   = fem_p1_solve(Mesh1D(N=256, n=1), A, f)   # référence numérique
-    u_p1_coarse = fem_p1_solve(Mesh1D(N=8,   n=1), A, f)   # P1 grossier, H ~ eps
-    u_msfem     = msfem_solve(Mesh1D(N=8,   n=32), A, f)   # MsFEM, mêmes H
+    u_p1_fine   = fem_p1_solve(Mesh1D(N=256, n=1), A, f)   # numerical reference
+    u_p1_coarse = fem_p1_solve(Mesh1D(N=8,   n=1), A, f)   # coarse P1, H ~ eps
+    u_msfem     = msfem_solve(Mesh1D(N=8,   n=32), A, f)   # MsFEM, same H
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 4))
 
@@ -55,7 +55,7 @@ def demo_solutions_msfem():
 
 
 # ===========================================================================
-# 2. Fonctions de base multi-échelles vs chapeaux P1
+# 2. Multiscale basis functions vs P1 hat functions
 # ===========================================================================
 
 def demo_basis():
@@ -68,7 +68,7 @@ def demo_basis():
     for i, phi in basis.items():
         xi = mesh.nodes_coarse[i]
         line, = axes[0].plot(x, phi.value(x), label=f"Φ_{i} (x={xi:.2g})")
-        # chapeau P1 classique de même support, en pointillé pour contraster
+        # standard P1 hat with the same support, dashed for contrast
         hat = np.clip(1.0 - np.abs(x - xi) / mesh.H, 0.0, None)
         axes[0].plot(x, hat, "--", color=line.get_color(), alpha=0.5)
         axes[1].plot(x, phi.grad(x), label=f"Φ_{i}'")
@@ -85,13 +85,13 @@ def demo_basis():
 
 
 # ===========================================================================
-# 3. Convergence en H : MsFEM vs P1 grossier
+# 3. Convergence in H: MsFEM vs coarse P1
 # ===========================================================================
 
 def convergence_compare():
     u_ex = exact_solution(eps=EPS)
     N_list = [4, 8, 16, 32, 64, 128]
-    n_fine = 16   # sous-maillage fin du MsFEM
+    n_fine = 16   # fine sub-mesh of the MsFEM
 
     H_list = []
     err = {"MsFEM L2": [], "MsFEM H1": [], "P1 grossier L2": [], "P1 grossier H1": []}
@@ -122,7 +122,7 @@ def convergence_compare():
 
 
 # ===========================================================================
-# 4. Benchmark : temps de chaque solveur + diagramme travail-précision
+# 4. Benchmark: time of each solver + work-accuracy diagram
 # ===========================================================================
 
 def benchmark():
@@ -164,11 +164,11 @@ def benchmark():
 
 
 # ===========================================================================
-# 5. Test résonant (H/eps entier) — vérification du facteur sqrt(3)/2
+# 5. Resonant test (integer H/eps) — check of the sqrt(3)/2 factor
 # ===========================================================================
 
 def test_resonant():
-    """À H = eps, le P1 grossier sous-estime l'exacte d'un facteur sqrt(3)/2."""
+    """At H = eps, coarse P1 underestimates the exact solution by a factor sqrt(3)/2."""
     N_res = int(1 / EPS)
     u_p1 = fem_p1_solve(Mesh1D(N=N_res, n=1), A, f)
     u_ms = msfem_solve(Mesh1D(N=N_res, n=32), A, f)

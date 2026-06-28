@@ -1,13 +1,13 @@
 """
-Problème modèle : -d/dx(A(x) u') = f sur (0,1), Dirichlet homogène.
+Model problem: -d/dx(A(x) u') = f on (0,1), homogeneous Dirichlet.
 A(x) = 1 / (2 + cos(2 pi x / eps)),  f = 1.
 
-Fournit :
-  - les coefficients A, f
-  - la constante homogénéisée A_hom = 1/2
-  - la solution homogénéisée u_hom(x) = x(1-x)  (forme close)
-  - la solution exacte sous forme close analytique (ExactSolution, interface
-    DiscreteSolution)
+Provides:
+  - the coefficients A, f
+  - the homogenized constant A_hom = 1/2
+  - the homogenized solution u_hom(x) = x(1-x)  (closed form)
+  - the exact solution in analytic closed form (ExactSolution, with the
+    DiscreteSolution interface)
 """
 
 import numpy as np
@@ -25,12 +25,12 @@ def f(x):
     return np.ones_like(np.asarray(x, dtype=float))
 
 
-# Moyenne harmonique : <1/A> = <2 + cos(...)> = 2  =>  A_hom = 1/2
+# Harmonic mean: <1/A> = <2 + cos(...)> = 2  =>  A_hom = 1/2
 A_HOM = 0.5
 
 
 def u_hom(x):
-    """Solution homogénéisée : -A_hom u'' = 1  =>  u_0(x) = x(1-x)."""
+    """Homogenized solution: -A_hom u'' = 1  =>  u_0(x) = x(1-x)."""
     x = np.asarray(x, dtype=float)
     return x * (1.0 - x)
 
@@ -41,27 +41,26 @@ def du_hom(x):
 
 
 # ---------------------------------------------------------------------------
-# Solution exacte sous forme close
+# Exact solution in closed form
 # ---------------------------------------------------------------------------
-# IMPORTANT : la forme close ci-dessous suppose f ≡ 1 (second membre constant).
+# IMPORTANT: the closed form below assumes f == 1 (constant right-hand side).
 #
-# En 1D, -(A u')' = 1 s'intègre une fois en  A(x) u'(x) = C - x, d'où
+# In 1D, -(A u')' = 1 integrates once into  A(x) u'(x) = C - x, hence
 #     u'(x) = (C - x)(2 + cos kx),     k = 2 pi / eps.
-# Une seconde intégration donne (valable pour tout eps, pas seulement le cas
-# résonant) :
+# A second integration gives (valid for any eps, not only the resonant case):
 #     u(x)  = 2 C x - x^2 + (C - x) sin(kx)/k + (1 - cos kx)/k^2.
-# La constante de flux C est fixée par u(1) = 0 :
+# The flux constant C is set by u(1) = 0:
 #     C = (1 + sin(k)/k + (cos k - 1)/k^2) / (2 + sin(k)/k).
 
 class ExactSolution:
-    """Solution exacte du problème modèle, conforme à l'interface DiscreteSolution."""
+    """Exact solution of the model problem, matching the DiscreteSolution interface."""
 
     def __init__(self, eps=EPS_DEFAULT):
         self.eps = eps
         k = 2.0 * np.pi / eps
         self.k = k
-        # Forme close de la constante de flux C (valable pour tout eps ; en
-        # régime résonant la formule redonne 0.5 à la précision machine).
+        # Closed form of the flux constant C (valid for any eps; in the
+        # resonant case the formula returns 0.5 up to machine precision).
         self.C = (1.0 + np.sin(k) / k + (np.cos(k) - 1.0) / k**2) \
             / (2.0 + np.sin(k) / k)
 
@@ -82,7 +81,7 @@ def exact_solution(eps=EPS_DEFAULT) -> ExactSolution:
 
 
 class HomogSolution:
-    """Solution homogénéisée u_0(x) = x(1-x), conforme à l'interface."""
+    """Homogenized solution u_0(x) = x(1-x), matching the interface."""
 
     def value(self, x):
         return u_hom(x)

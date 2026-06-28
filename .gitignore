@@ -1,0 +1,31 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environnements virtuels
+.venv/
+venv/
+env/
+ENV/
+
+# Caches d'outils
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# --- Sorties générées par le projet ---
+# Figures produites par les scripts (plots, benchmarks, convergence...)
+*.png
+*.jpg
+*.jpeg
+*.svg
+
+# --- Système / éditeurs ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

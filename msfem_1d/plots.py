@@ -1,5 +1,5 @@
 """
-Tracés : solutions, erreurs, courbes de convergence.
+Plots: solutions, errors, convergence curves.
 """
 
 import numpy as np
@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 def plot_solutions(solutions_dict: dict, n_pts=500, title="Solutions", ax=None):
     """
     solutions_dict : {"label": solution_obj, ...}
-    Chaque solution_obj doit avoir .value(x).
+    Each solution_obj must have .value(x).
     """
     if ax is None:
         fig, ax = plt.subplots()
@@ -24,10 +24,10 @@ def plot_solutions(solutions_dict: dict, n_pts=500, title="Solutions", ax=None):
 
 def plot_pointwise_error(sol_dict: dict, ref, n_pts=500, title="Erreur pointwise", ax=None):
     """
-    Trace |sol(x) - ref(x)| pour chaque solution.
+    Plot |sol(x) - ref(x)| for each solution.
 
-    sol_dict : {"label": solution_obj, ...}, chaque objet ayant .value(x).
-    ref      : solution de référence (objet avec .value(x)).
+    sol_dict : {"label": solution_obj, ...}, each object having .value(x).
+    ref      : reference solution (object with .value(x)).
     """
     if ax is None:
         fig, ax = plt.subplots()
@@ -43,9 +43,9 @@ def plot_pointwise_error(sol_dict: dict, ref, n_pts=500, title="Erreur pointwise
 
 def plot_convergence(H_list, errors_dict: dict, title="Convergence", ax=None, refs=None):
     """
-    H_list       : liste de pas grossiers
-    errors_dict  : {"label": [err(H) pour chaque H], ...}
-    refs         : {slope: label}  ex. {2: "O(H^2)", 1: "O(H)"}
+    H_list       : list of coarse steps
+    errors_dict  : {"label": [err(H) for each H], ...}
+    refs         : {slope: label}  e.g. {2: "O(H^2)", 1: "O(H)"}
     """
     if ax is None:
         fig, ax = plt.subplots()

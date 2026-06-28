@@ -1,11 +1,11 @@
 """
-Chronométrage des solveurs.
+Solver timing.
 
-Mesure robuste du temps d'exécution d'un solveur (warm-up + médiane de plusieurs
-appels). Utilisé pour comparer le coût P1 grossier / P1 fin / MsFEM.
+Robust measurement of a solver run time (warm-up + median of several calls).
+Used to compare the cost of coarse P1 / fine P1 / MsFEM.
 
-Note : les solveurs utilisent np.linalg.solve (dense, O(m^3)). Les temps mesurés
-reflètent donc cette implémentation, pas la complexité optimale tridiagonale.
+Note: the solvers use np.linalg.solve (dense, O(m^3)). The measured times
+therefore reflect this implementation, not the optimal tridiagonal complexity.
 """
 
 import time
@@ -14,25 +14,25 @@ import numpy as np
 
 def time_solver(solve_fn, *args, repeats: int = 5, **kwargs):
     """
-    Chronomètre un solveur et renvoie sa solution et son temps médian.
+    Time a solver and return its solution and its median run time.
 
     Parameters
     ----------
     solve_fn : callable
-        Fonction de résolution, ex. fem_p1_solve ou msfem.solve.
+        Solver function, e.g. fem_p1_solve or msfem.solve.
     *args, **kwargs
-        Arguments transmis à solve_fn.
+        Arguments passed to solve_fn.
     repeats : int, optional
-        Nombre d'exécutions chronométrées (médiane retournée), défaut 5.
+        Number of timed runs (median returned), default 5.
 
     Returns
     -------
     solution : object
-        Résultat du dernier appel à solve_fn.
+        Result of the last call to solve_fn.
     t_median : float
-        Temps d'exécution médian, en secondes.
+        Median run time, in seconds.
     """
-    solve_fn(*args, **kwargs)   # warm-up (caches, imports paresseux)
+    solve_fn(*args, **kwargs)   # warm-up (caches, lazy imports)
 
     times = np.empty(repeats)
     solution = None

@@ -1,10 +1,10 @@
 """
-Tests end-to-end du pipeline MsFEM complet (problèmes locaux + assemblage
-global + résolution + reconstruction).
+End-to-end tests of the full MsFEM pipeline (local problems + global assembly
++ solve + reconstruction).
 
-On vérifie : la réduction exacte au P1 grossier en coefficient constant,
-l'exactitude nodale en régime résonant, la supériorité sur le P1 grossier là
-où celui-ci s'effondre (H ~ eps), et la convergence en H.
+We check: the exact reduction to coarse P1 for a constant coefficient, nodal
+exactness in the resonant case, the advantage over coarse P1 where the latter
+breaks down (H ~ eps), and convergence in H.
 """
 
 import numpy as np
@@ -14,12 +14,12 @@ from msfem_1d import problem, fem_p1, msfem
 from msfem_1d import errors
 
 
-# Grille de référence fine commune (multiple de tous les maillages testés).
+# Common fine reference grid (multiple of all tested meshes).
 REF_NODES = np.linspace(0.0, 1.0, 4096 + 1)
 
 
 class _ConstSolution:
-    """Solution exacte de -c u'' = 1, Dirichlet homogène : u = x(1-x)/(2c)."""
+    """Exact solution of -c u'' = 1, homogeneous Dirichlet: u = x(1-x)/(2c)."""
 
     def __init__(self, c):
         self.c = c
@@ -34,21 +34,21 @@ class _ConstSolution:
 
 
 def test_constant_coeff_reduces_to_coarse_p1():
-    """En coefficient constant, MsFEM(N,n) coïncide avec le P1 grossier."""
+    """For a constant coefficient, MsFEM(N,n) matches coarse P1."""
     c = 0.7
     A = lambda x: np.full_like(np.asarray(x, float), c)
     f = problem.f
     ms = msfem.solve(Mesh1D(N=10, n=5), A, f)
-    p1 = fem_p1.solve(Mesh1D(N=10, n=1), A, f)         # P1 sur le maillage grossier
+    p1 = fem_p1.solve(Mesh1D(N=10, n=1), A, f)         # P1 on the coarse mesh
     xs = np.linspace(0.0, 1.0, 257)
     assert np.max(np.abs(ms.value(xs) - p1.value(xs))) < 1e-12
-    # nodalement exact aux nœuds grossiers
+    # nodally exact at the coarse nodes
     xc = Mesh1D(N=10).nodes_coarse
     assert np.max(np.abs(ms.value(xc) - _ConstSolution(c).value(xc))) < 1e-12
 
 
 def test_resonant_nodally_exact():
-    """En régime résonant (H/eps entier), MsFEM est exact aux nœuds grossiers."""
+    """In the resonant case (integer H/eps), MsFEM is exact at the coarse nodes."""
     eps = problem.EPS_DEFAULT                          # 1/8
     A, f = lambda x: problem.A(x, eps), problem.f
     exact = problem.exact_solution(eps)
@@ -59,7 +59,7 @@ def test_resonant_nodally_exact():
 
 
 def test_resonant_node_error_decreases_with_fine_mesh():
-    """L'erreur nodale résonante chute quand le maillage fin se raffine (Simpson)."""
+    """The resonant nodal error drops as the fine mesh is refined (Simpson)."""
     eps = problem.EPS_DEFAULT
     A, f = lambda x: problem.A(x, eps), problem.f
     exact = problem.exact_solution(eps)
@@ -74,7 +74,7 @@ def test_resonant_node_error_decreases_with_fine_mesh():
 
 
 def test_msfem_beats_coarse_p1_in_resonant_regime():
-    """À H ~ eps, MsFEM est nettement plus précis que le P1 grossier."""
+    """At H ~ eps, MsFEM is clearly more accurate than coarse P1."""
     eps = problem.EPS_DEFAULT
     A, f = lambda x: problem.A(x, eps), problem.f
     exact = problem.exact_solution(eps)
@@ -86,7 +86,7 @@ def test_msfem_beats_coarse_p1_in_resonant_regime():
 
 
 def test_msfem_H_convergence():
-    """À maillage fin fixe (h constant), l'erreur L2 décroît quand H diminue."""
+    """At fixed fine mesh (constant h), the L2 error decreases as H shrinks."""
     eps = 1.0 / 16.0
     A, f = lambda x: problem.A(x, eps), problem.f
     exact = problem.exact_solution(eps)

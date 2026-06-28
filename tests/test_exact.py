@@ -1,9 +1,9 @@
 """
-Tests de la solution exacte sous forme close (ExactSolution).
+Tests for the closed-form exact solution (ExactSolution).
 
-On vérifie que la forme close coïncide avec un calcul de référence par
-quadrature (l'ancien moteur, réimplémenté ici comme helper de test), et que
-ExactSolution est cohérente avec l'homogénéisation quand eps -> 0.
+We check that the closed form matches a reference computation by quadrature
+(the old engine, reimplemented here as a test helper), and that ExactSolution
+is consistent with homogenization when eps -> 0.
 """
 
 import numpy as np
@@ -13,20 +13,20 @@ from msfem_1d import ExactSolution
 
 
 # ---------------------------------------------------------------------------
-# Helper de test : ancien moteur de quadrature Gauss-Legendre
+# Test helper: old Gauss-Legendre quadrature engine
 # ---------------------------------------------------------------------------
 def _exact_by_quadrature(eps, n_quad=4000):
     """
-    Reconstruit (u_func, C) par quadrature, indépendamment de la forme close.
-    Sert de référence pour valider ExactSolution.
+    Rebuild (u_func, C) by quadrature, independently of the closed form.
+    Serves as a reference to validate ExactSolution.
 
-    u'(x) = (C - x)(2 + cos(2 pi x / eps)),  C fixé par u(1) = 0.
+    u'(x) = (C - x)(2 + cos(2 pi x / eps)),  C set by u(1) = 0.
     """
     t_nodes, t_weights = np.polynomial.legendre.leggauss(n_quad)
-    t01 = 0.5 * (t_nodes + 1.0)   # points dans [0,1]
-    w01 = 0.5 * t_weights         # poids associés
+    t01 = 0.5 * (t_nodes + 1.0)   # points in [0,1]
+    w01 = 0.5 * t_weights         # matching weights
 
-    # u(1) = C * I1 - I2 = 0  avec
+    # u(1) = C * I1 - I2 = 0  with
     #   I1 = ∫_0^1 (2 + cos(2π t/eps)) dt
     #   I2 = ∫_0^1 t (2 + cos(2π t/eps)) dt
     I1 = np.dot(w01, 2.0 + np.cos(2.0 * np.pi * t01 / eps))
@@ -42,7 +42,7 @@ def _exact_by_quadrature(eps, n_quad=4000):
             if xi == 0.0:
                 result[i] = 0.0
             else:
-                # quadrature de u'(t) sur [0, xi]
+                # quadrature of u'(t) on [0, xi]
                 ti = 0.5 * xi * (t_nodes + 1.0)
                 wi = 0.5 * xi * t_weights
                 result[i] = np.dot(
@@ -55,26 +55,26 @@ def _exact_by_quadrature(eps, n_quad=4000):
 
 @pytest.mark.parametrize("eps", [1.0 / 8.0, 1.0 / 7.3])
 def test_closed_form_matches_quadrature(eps):
-    """La forme close coïncide avec la quadrature de référence à 1e-10."""
+    """The closed form matches the reference quadrature to 1e-10."""
     exact = ExactSolution(eps)
     u_ref, C_ref = _exact_by_quadrature(eps)
 
-    # constante de flux
+    # flux constant
     assert abs(exact.C - C_ref) < 1e-10
 
-    # valeurs sur une grille fine
+    # values on a fine grid
     grid = np.linspace(0.0, 1.0, 257)
     assert np.max(np.abs(exact.value(grid) - u_ref(grid))) < 1e-10
 
-    # conditions de Dirichlet homogènes
+    # homogeneous Dirichlet conditions
     assert abs(exact.value(0.0)) < 1e-12
     assert abs(exact.value(1.0)) < 1e-10
 
 
 def test_homogenization_consistency():
     """
-    Quand eps -> 0 : C -> 1/2 et u -> u_0(x) = x(1-x), l'écart décroissant en
-    O(eps).
+    When eps -> 0: C -> 1/2 and u -> u_0(x) = x(1-x), with the gap decreasing
+    as O(eps).
     """
     epss = np.array([1.0 / 8.0, 1.0 / 16.0, 1.0 / 32.0, 1.0 / 64.0])
     grid = np.linspace(0.0, 1.0, 513)
@@ -87,15 +87,15 @@ def test_homogenization_consistency():
         errs.append(np.max(np.abs(exact.value(grid) - u0)))
     errs = np.array(errs)
 
-    # l'erreur décroît
+    # the error decreases
     assert np.all(np.diff(errs) < 0.0)
 
-    # taux ~ O(eps) : en divisant eps par 2, l'erreur est ~ divisée par 2.
+    # rate ~ O(eps): halving eps roughly halves the error.
     ratios = errs[:-1] / errs[1:]
-    assert np.all(ratios > 1.7)   # proche de 2, marge pour les termes d'ordre sup.
+    assert np.all(ratios > 1.7)   # close to 2, margin for higher-order terms.
 
 
 def test_resonant_eps_gives_half():
-    """En régime résonant (eps = 1/n entier), C = 1/2 à la précision machine."""
+    """In the resonant case (eps = 1/n integer), C = 1/2 up to machine precision."""
     for n in (4, 8, 16):
         assert abs(ExactSolution(1.0 / n).C - 0.5) < 1e-12

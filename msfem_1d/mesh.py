@@ -1,9 +1,8 @@
 """
-Maillage 1D uniforme.
+Uniform 1D mesh.
 
-Maillage grossier : N+1 nœuds, pas H = 1/N.
-Sous-maillage fin : chaque maille grossière est subdivisée en n sous-intervalles,
-  pas h = H/n.
+Coarse mesh: N+1 nodes, step H = 1/N.
+Fine sub-mesh: each coarse cell is split into n sub-intervals, step h = H/n.
 """
 
 import numpy as np
@@ -11,10 +10,10 @@ import numpy as np
 
 class Mesh1D:
     """
-    Paramètres
+    Parameters
     ----------
-    N   : nombre de mailles grossières (N+1 nœuds, y.c. bords)
-    n   : nombre de sous-mailles fines par maille grossière
+    N   : number of coarse cells (N+1 nodes, including boundaries)
+    n   : number of fine sub-cells per coarse cell
     """
 
     def __init__(self, N: int, n: int = 1):
@@ -23,37 +22,37 @@ class Mesh1D:
         self.H = 1.0 / N
         self.h = self.H / n
 
-        # Noeuds grossiers (N+1 points, indices 0..N)
+        # Coarse nodes (N+1 points, indices 0..N)
         self.nodes_coarse = np.linspace(0.0, 1.0, N + 1)
 
-        # Noeuds fins (N*n + 1 points)
+        # Fine nodes (N*n + 1 points)
         self.nodes_fine = np.linspace(0.0, 1.0, N * n + 1)
 
     # ------------------------------------------------------------------
-    # Utilitaires géométriques
+    # Geometry helpers
     # ------------------------------------------------------------------
 
     def coarse_element(self, i: int):
-        """Retourne (x_left, x_right) de la i-ème maille grossière (0-indexé)."""
+        """Return (x_left, x_right) of the i-th coarse cell (0-indexed)."""
         return self.nodes_coarse[i], self.nodes_coarse[i + 1]
 
     def fine_nodes_in_element(self, i: int):
-        """Noeuds fins dans la i-ème maille grossière (inclus les deux bords)."""
+        """Fine nodes inside the i-th coarse cell (both boundaries included)."""
         start = i * self.n
         return self.nodes_fine[start : start + self.n + 1]
 
     def element_of(self, x):
         """
-        Indice de la maille grossière contenant x (ou la dernière si x==1).
-        Fonctionne sur scalaire ou array.
+        Index of the coarse cell that contains x (or the last one if x==1).
+        Works on a scalar or an array.
         """
         x = np.asarray(x, dtype=float)
-        idx = np.floor(x / self.H).astype(int)   # maille = partie entière de x/H
-        np.clip(idx, 0, self.N - 1, out=idx)     # borne le cas x == 1
+        idx = np.floor(x / self.H).astype(int)   # cell = integer part of x/H
+        np.clip(idx, 0, self.N - 1, out=idx)     # bound the x == 1 case
         return idx
 
     # ------------------------------------------------------------------
-    # Représentation
+    # Representation
     # ------------------------------------------------------------------
 
     def __repr__(self):

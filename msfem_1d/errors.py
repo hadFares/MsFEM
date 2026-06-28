@@ -1,9 +1,9 @@
 """
-Normes d'erreur entre deux solutions quelconques (DiscreteSolution ou exacte).
+Error norms between any two solutions (DiscreteSolution or exact).
 
-Toutes les fonctions prennent deux objets avec .value(x) et .grad(x),
-et une grille fine sur laquelle la quadrature est effectuée.
-Aucun if méthode == ... ici.
+All functions take two objects with .value(x) and .grad(x), plus a fine grid
+on which the quadrature is done.
+No "if method == ..." here.
 """
 
 import numpy as np
@@ -11,7 +11,7 @@ import numpy as np
 
 def _gauss_on_intervals(nodes, n_gauss=5):
     """
-    Retourne (points, poids) de Gauss sur l'union des intervalles [nodes[i], nodes[i+1]].
+    Return Gauss (points, weights) on the union of intervals [nodes[i], nodes[i+1]].
     """
     xi_g, w_g = np.polynomial.legendre.leggauss(n_gauss)
     all_pts, all_w = [], []
@@ -45,7 +45,7 @@ def norm_H1(u, v, ref_nodes, n_gauss=5) -> float:
 
 
 def norm_energy(u, v, A_func, ref_nodes, n_gauss=5) -> float:
-    """||u - v||_{énergie} = sqrt( integral A |u'-v'|^2 dx )"""
+    """||u - v||_{energy} = sqrt( integral A |u'-v'|^2 dx )"""
     pts, w = _gauss_on_intervals(ref_nodes, n_gauss)
     diff_g = u.grad(pts) - v.grad(pts)
     A_vals = A_func(pts)

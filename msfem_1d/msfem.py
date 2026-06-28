@@ -1,13 +1,13 @@
 """
-Assemblage et résolution MsFEM 1D.
+1D MsFEM assembly and solve.
 
-Deux étages :
-  1. problème local par maille grossière -> fonctions de base multi-échelles
-     (résolues par P1 sur le maillage fin) ;
-  2. assemblage du système global de Galerkin sur ces fonctions de base.
+Two stages:
+  1. a local problem per coarse cell -> multiscale basis functions
+     (solved with P1 on the fine mesh);
+  2. assembly of the global Galerkin system on these basis functions.
 
-Les intégrales du coefficient A sur chaque sous-intervalle fin (alpha_m) sont
-approchées par la formule de Simpson, puis réutilisées aux deux étages.
+The integrals of the coefficient A over each fine sub-interval (alpha_m) are
+approximated with Simpson's rule, then reused at both stages.
 
 solve(mesh, A_func, f_func) -> P1Interpolant
 """
@@ -19,14 +19,14 @@ from .solution import P1Interpolant
 
 def _simpson_alphas(y, A_func):
     """
-    Intègre A sur chaque sous-intervalle fin par la formule de Simpson.
+    Integrate A over each fine sub-interval with Simpson's rule.
 
     Parameters
     ----------
     y : ndarray, shape (n+1,)
-        Nœuds fins d'une maille grossière.
+        Fine nodes of one coarse cell.
     A_func : callable
-        Coefficient A(x), vectorisé.
+        Coefficient A(x), vectorized.
 
     Returns
     -------
@@ -40,28 +40,28 @@ def _simpson_alphas(y, A_func):
 
 def solve_local_cell(mesh: Mesh1D, i: int, A_func):
     """
-    Résout les deux problèmes locaux homogènes sur la i-ème maille grossière.
+    Solve the two homogeneous local problems on the i-th coarse cell.
 
-    Sur K_i = [x_i, x_{i+1}], chaque fonction de base résout -(A phi')' = 0 par
-    P1 sur le maillage fin, avec relèvement de la condition de Dirichlet.
+    On K_i = [x_i, x_{i+1}], each basis function solves -(A phi')' = 0 with P1
+    on the fine mesh, using a lifting of the Dirichlet condition.
 
     Parameters
     ----------
     mesh : Mesh1D
-        Maillage à deux niveaux (grossier H, fin h = H/n).
+        Two-level mesh (coarse H, fine h = H/n).
     i : int
-        Indice de la maille grossière (0-indexé).
+        Index of the coarse cell (0-indexed).
     A_func : callable
-        Coefficient A(x), vectorisé.
+        Coefficient A(x), vectorized.
 
     Returns
     -------
     alpha : ndarray, shape (n,)
-        Intégrales de A sur les sous-intervalles fins (réutilisées au global).
+        Integrals of A over the fine sub-intervals (reused in the global stage).
     U : ndarray, shape (n+1,)
-        Base ancrée à gauche : valeurs nodales fines, U[0]=1, U[n]=0.
+        Left-anchored basis: fine nodal values, U[0]=1, U[n]=0.
     V : ndarray, shape (n+1,)
-        Base ancrée à droite : valeurs nodales fines, V[0]=0, V[n]=1.
+        Right-anchored basis: fine nodal values, V[0]=0, V[n]=1.
     """
     y = mesh.fine_nodes_in_element(i)
     n = mesh.n
@@ -72,14 +72,14 @@ def solve_local_cell(mesh: Mesh1D, i: int, A_func):
     U[0] = 1.0
     V[n] = 1.0
 
-    # Pas de nœud intérieur (n == 1) : la base se réduit au P1 classique.
+    # No interior node (n == 1): the basis reduces to standard P1.
     if n > 1:
-        # Système tridiagonal (n-1) x (n-1) ; le facteur 1/h^2 se simplifie.
+        # Tridiagonal system (n-1) x (n-1); the 1/h^2 factor cancels out.
         diag = alpha[:-1] + alpha[1:]
         off = -alpha[1:-1]
         K = np.diag(diag) + np.diag(off, 1) + np.diag(off, -1)
 
-        # Seconds membres issus du relèvement (gauche : phi(x_i)=1 ; droite : =1 à droite).
+        # Right-hand sides from the lifting (left: phi(x_i)=1; right: =1 on the right).
         b = np.zeros((n - 1, 2))
         b[0, 0] = alpha[0]
         b[-1, 1] = alpha[-1]
@@ -93,80 +93,80 @@ def solve_local_cell(mesh: Mesh1D, i: int, A_func):
 
 def _stiffness(alpha, W1, W2, h):
     """
-    Contribution \\int A W1' W2' dx sur une maille (dérivées P1 par morceaux).
+    Contribution \\int A W1' W2' dx over a cell (piecewise P1 derivatives).
 
     Parameters
     ----------
     alpha : ndarray, shape (n,)
-        Intégrales de A sur les sous-intervalles fins.
+        Integrals of A over the fine sub-intervals.
     W1, W2 : ndarray, shape (n+1,)
-        Valeurs nodales fines des deux fonctions.
+        Fine nodal values of the two functions.
     h : float
-        Pas fin.
+        Fine step.
 
     Returns
     -------
     float
-        Somme des contributions de rigidité sur la maille.
+        Sum of the stiffness contributions over the cell.
     """
     return np.sum(alpha * np.diff(W1) * np.diff(W2)) / h**2
 
 
 def solve(mesh: Mesh1D, A_func, f_func) -> P1Interpolant:
     """
-    Résout -d/dx(A u') = f par MsFEM, Dirichlet homogène u(0)=u(1)=0.
+    Solve -d/dx(A u') = f with MsFEM, homogeneous Dirichlet u(0)=u(1)=0.
 
-    Les fonctions de base multi-échelles sont calculées maille par maille
-    (solve_local_cell), puis le système global tridiagonal (N-1) x (N-1) est
-    assemblé et résolu. La solution est reconstruite sur les nœuds fins.
+    The multiscale basis functions are computed cell by cell
+    (solve_local_cell), then the global tridiagonal system (N-1) x (N-1) is
+    assembled and solved. The solution is rebuilt on the fine nodes.
 
     Parameters
     ----------
     mesh : Mesh1D
-        Maillage à deux niveaux.
+        Two-level mesh.
     A_func : callable
-        Coefficient A(x), vectorisé.
+        Coefficient A(x), vectorized.
     f_func : callable
-        Second membre f(x), vectorisé.
+        Right-hand side f(x), vectorized.
 
     Returns
     -------
     P1Interpolant
-        Solution MsFEM échantillonnée exactement sur les nœuds fins.
+        MsFEM solution sampled exactly on the fine nodes.
     """
     N, n, h = mesh.N, mesh.n, mesh.h
 
-    # Étage 1 : résolution des problèmes locaux sur chaque maille grossière.
+    # Stage 1: solve the local problems on each coarse cell.
     alpha = [None] * N
-    U = [None] * N   # base ancrée à gauche (1 -> 0)
-    V = [None] * N   # base ancrée à droite (0 -> 1)
+    U = [None] * N   # left-anchored basis (1 -> 0)
+    V = [None] * N   # right-anchored basis (0 -> 1)
     for i in range(N):
         alpha[i], U[i], V[i] = solve_local_cell(mesh, i, A_func)
 
-    # Étage 2 : assemblage du système global tridiagonal sur les nœuds intérieurs.
+    # Stage 2: assemble the global tridiagonal system on the interior nodes.
     K = np.zeros((N - 1, N - 1))
     F = np.zeros(N - 1)
     for j in range(1, N):
-        p = j - 1   # indice matriciel du nœud intérieur j
-        # Phi_j vit sur K_{j-1} (ancrée à droite) et K_j (ancrée à gauche).
+        p = j - 1   # matrix index of interior node j
+        # Phi_j lives on K_{j-1} (right-anchored) and K_j (left-anchored).
         K[p, p] = (_stiffness(alpha[j - 1], V[j - 1], V[j - 1], h)
                    + _stiffness(alpha[j], U[j], U[j], h))
         if j < N - 1:
-            # Recouvrement de Phi_j et Phi_{j+1} sur la maille commune K_j.
+            # Overlap of Phi_j and Phi_{j+1} on the shared cell K_j.
             kij = _stiffness(alpha[j], U[j], V[j], h)
             K[p, p + 1] = kij
             K[p + 1, p] = kij
 
-        # Second membre : \\int f Phi_j sur les deux mailles (trapèzes sur maillage fin).
+        # Right-hand side: \\int f Phi_j over the two cells (trapezoid on fine mesh).
         yl = mesh.fine_nodes_in_element(j - 1)
         yr = mesh.fine_nodes_in_element(j)
         F[p] = (np.trapezoid(f_func(yl) * V[j - 1], dx=h)
                 + np.trapezoid(f_func(yr) * U[j], dx=h))
 
-    U_coarse = np.zeros(N + 1)   # valeurs aux nœuds grossiers, bords à 0
+    U_coarse = np.zeros(N + 1)   # values at coarse nodes, boundaries at 0
     U_coarse[1:N] = np.linalg.solve(K, F)
 
-    # Reconstruction : u_H = sum_i U_coarse[i] Phi_i, échantillonnée sur les nœuds fins.
+    # Reconstruction: u_H = sum_i U_coarse[i] Phi_i, sampled on the fine nodes.
     u_fine = np.zeros(N * n + 1)
     for i in range(N):
         seg = slice(i * n, i * n + n + 1)
@@ -177,38 +177,38 @@ def solve(mesh: Mesh1D, A_func, f_func) -> P1Interpolant:
 
 def msfem_basis(mesh: Mesh1D, A_func) -> dict:
     """
-    Construit les fonctions de base multi-échelles Phi_i (nœuds intérieurs).
+    Build the multiscale basis functions Phi_i (interior nodes).
 
-    Phi_i a pour support [x_{i-1}, x_{i+1}] : ancrée à droite (0->1) sur la maille
-    i-1, ancrée à gauche (1->0) sur la maille i. Utile pour la visualisation.
+    Phi_i has support [x_{i-1}, x_{i+1}]: right-anchored (0->1) on cell i-1,
+    left-anchored (1->0) on cell i. Useful for visualization.
 
     Parameters
     ----------
     mesh : Mesh1D
-        Maillage à deux niveaux.
+        Two-level mesh.
     A_func : callable
-        Coefficient A(x), vectorisé.
+        Coefficient A(x), vectorized.
 
     Returns
     -------
     dict[int, P1Interpolant]
-        Pour chaque nœud intérieur i (1..N-1), Phi_i échantillonnée sur tous les
-        nœuds fins (nulle hors de son support [x_{i-1}, x_{i+1}]).
+        For each interior node i (1..N-1), Phi_i sampled on all fine nodes
+        (zero outside its support [x_{i-1}, x_{i+1}]).
     """
     N, n = mesh.N, mesh.n
 
-    # Résolution locale par maille (réutilisée par les Phi_i adjacentes).
-    U = [None] * N   # base ancrée à gauche (1 -> 0)
-    V = [None] * N   # base ancrée à droite (0 -> 1)
+    # Local solve per cell (reused by the adjacent Phi_i).
+    U = [None] * N   # left-anchored basis (1 -> 0)
+    V = [None] * N   # right-anchored basis (0 -> 1)
     for c in range(N):
         _, U[c], V[c] = solve_local_cell(mesh, c, A_func)
 
     basis = {}
     for i in range(1, N):
-        # Support sur tous les nœuds fins : nul ailleurs (évite l'extrapolation).
+        # Support over all fine nodes: zero elsewhere (avoids extrapolation).
         values = np.zeros(N * n + 1)
-        values[(i - 1) * n : i * n + 1] = V[i - 1]   # maille i-1 (0 -> 1)
-        values[i * n : (i + 1) * n + 1] = U[i]       # maille i   (1 -> 0)
+        values[(i - 1) * n : i * n + 1] = V[i - 1]   # cell i-1 (0 -> 1)
+        values[i * n : (i + 1) * n + 1] = U[i]       # cell i   (1 -> 0)
         basis[i] = P1Interpolant(mesh.nodes_fine, values)
 
     return basis
