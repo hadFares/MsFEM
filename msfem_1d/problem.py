@@ -14,7 +14,7 @@ import numpy as np
 from .solution import DiscreteSolution
 
 
-EPS_DEFAULT = 1 / 8
+EPS_DEFAULT = 1 / 16
 
 
 def A(x, eps=EPS_DEFAULT):

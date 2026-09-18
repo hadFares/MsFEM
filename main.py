@@ -12,15 +12,15 @@ import matplotlib.pyplot as plt
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
-from msfem_1d import (Mesh1D, exact_solution, HomogSolution,
+from msfem_1d import (Mesh1D, exact_solution,
                       fem_p1_solve, msfem_solve, msfem_basis)
 from msfem_1d import errors, plots, timing
 from msfem_1d.problem import A, f
 
-EPS = 1 / 8
+EPS = 1 / 16
 
 # Common fine reference grid for the error-norm quadrature.
-REF_NODES = np.linspace(0.0, 1.0, 4096 + 1)
+REF_NODES = np.linspace(0.0, 1.0, 8192 + 1)
 
 
 # ===========================================================================
@@ -28,24 +28,25 @@ REF_NODES = np.linspace(0.0, 1.0, 4096 + 1)
 # ===========================================================================
 
 def demo_solutions_msfem():
-    u_ex = exact_solution(eps=EPS)
-    u_hom = HomogSolution()
+    eps = 0.25
+    A_eps = lambda x: A(x, eps=eps)                        # coefficient lié à ε = 0.25
 
-    u_p1_fine   = fem_p1_solve(Mesh1D(N=256, n=1), A, f)   # numerical reference
-    u_p1_coarse = fem_p1_solve(Mesh1D(N=8,   n=1), A, f)   # coarse P1, H ~ eps
-    u_msfem     = msfem_solve(Mesh1D(N=8,   n=32), A, f)   # MsFEM, same H
+    u_ex = exact_solution(eps=eps)
+
+    u_p1_fine   = fem_p1_solve(Mesh1D(N=192, n=1), A_eps, f)   # P1 fin, même finesse que le MsFEM
+    u_p1_coarse = fem_p1_solve(Mesh1D(N=6,   n=1), A_eps, f)   # coarse P1
+    u_msfem     = msfem_solve(Mesh1D(N=6,   n=32), A_eps, f)   # MsFEM, 6x32 = 192 mailles fines
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 4))
 
     plots.plot_solutions(
-        {"Exacte": u_ex, "P1 fin (H=1/256)": u_p1_fine,
-         "P1 grossier (H=1/8)": u_p1_coarse, "MsFEM (H=1/8, n=32)": u_msfem,
-         "Homogénéisée": u_hom},
-        title=f"Solutions — ε={EPS:.3g}", ax=axes[0]
+        {"Exacte": u_ex, "P1 fin (H=1/192)": u_p1_fine,
+         "P1 grossier (H=1/6)": u_p1_coarse, "MsFEM (H=1/6, n=32)": u_msfem},
+        title=f"Solutions : ε = {eps:.3g}", ax=axes[0]
     )
     plots.plot_pointwise_error(
-        {"|P1 grossier - exact|": u_p1_coarse, "|MsFEM - exact|": u_msfem},
-        u_ex, title="Erreur pointwise (H ~ ε)", ax=axes[1]
+        {"P1 grossier vs exacte": u_p1_coarse, "MsFEM vs exacte": u_msfem},
+        u_ex, title="Écart à la solution exacte", ax=axes[1]
     )
 
     plt.tight_layout()
@@ -59,7 +60,7 @@ def demo_solutions_msfem():
 # ===========================================================================
 
 def demo_basis():
-    mesh = Mesh1D(N=4, n=200)
+    mesh = Mesh1D(N=4, n=400)
     basis = msfem_basis(mesh, A)
 
     x = np.linspace(0.0, 1.0, 1000)
@@ -90,8 +91,8 @@ def demo_basis():
 
 def convergence_compare():
     u_ex = exact_solution(eps=EPS)
-    N_list = [4, 8, 16, 32, 64, 128]
-    n_fine = 16   # fine sub-mesh of the MsFEM
+    N_list = [8, 16, 32, 64, 128, 256]
+    n_fine = 32   # fine sub-mesh of the MsFEM
 
     H_list = []
     err = {"MsFEM L2": [], "MsFEM H1": [], "P1 grossier L2": [], "P1 grossier H1": []}
@@ -127,8 +128,8 @@ def convergence_compare():
 
 def benchmark():
     u_ex = exact_solution(eps=EPS)
-    N_list = [8, 16, 32, 64, 128]
-    n_fine = 16
+    N_list = [16, 32, 64, 128, 256]
+    n_fine = 32
 
     res = {"P1 grossier": {"t": [], "e": [], "dof": []},
            "P1 fin":      {"t": [], "e": [], "dof": []},
@@ -171,7 +172,7 @@ def test_resonant():
     """At H = eps, coarse P1 underestimates the exact solution by a factor sqrt(3)/2."""
     N_res = int(1 / EPS)
     u_p1 = fem_p1_solve(Mesh1D(N=N_res, n=1), A, f)
-    u_ms = msfem_solve(Mesh1D(N=N_res, n=32), A, f)
+    u_ms = msfem_solve(Mesh1D(N=N_res, n=64), A, f)
     u_ex = exact_solution(eps=EPS)
 
     x_mid = 0.5
